@@ -31,7 +31,6 @@ export default async function handler(req, res) {
       const body = await r.text().catch(() => "");
       return res.status(r.status).json({ error: "tts fetch failed", details: body.slice(0, 300) });
     }
-
     const audio = Buffer.from(await r.arrayBuffer());
 
     res.setHeader("Content-Type", "audio/mpeg");
