@@ -1,7 +1,7 @@
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-import asyncio
-import edge_tts
+from io import BytesIO
+from gtts import gTTS
 
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
@@ -15,9 +15,7 @@ class handler(BaseHTTPRequestHandler):
         try:
             qs = parse_qs(urlparse(self.path).query)
             text = (qs.get("text", [""]) or [""])[0].strip()
-            voice = (qs.get("voice", ["vi-VN-HoaiMyNeural"]) or ["vi-VN-HoaiMyNeural"])[0]
-            rate = (qs.get("rate", ["+0%"]) or ["+0%"])[0]
-            pitch = (qs.get("pitch", ["+0Hz"]) or ["+0Hz"])[0]
+            lang = (qs.get("lang", ["vi"]) or ["vi"])[0]
 
             if not text:
                 self.send_response(400)
@@ -27,7 +25,11 @@ class handler(BaseHTTPRequestHandler):
                 self.wfile.write(b'{"error":"missing text"}')
                 return
 
-            audio_bytes = asyncio.run(self._synth(text, voice, rate, pitch))
+            # gTTS trả mp3
+            mp3_fp = BytesIO()
+            tts = gTTS(text=text, lang=lang, slow=False)
+            tts.write_to_fp(mp3_fp)
+            audio_bytes = mp3_fp.getvalue()
 
             self.send_response(200)
             self.send_header("Access-Control-Allow-Origin", "*")
@@ -41,13 +43,5 @@ class handler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.end_headers()
-            msg = ("{\"error\":\"tts failed\",\"details\":\"" + str(e).replace("\"","'") + "\"}").encode("utf-8")
+            msg = ("{\"error\":\"tts failed\",\"details\":\"" + str(e).replace('\"', \"'\") + "\"}").encode("utf-8")
             self.wfile.write(msg)
-
-    async def _synth(self, text: str, voice: str, rate: str, pitch: str) -> bytes:
-        communicate = edge_tts.Communicate(text=text, voice=voice, rate=rate, pitch=pitch)
-        chunks = []
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                chunks.append(chunk["data"])
-        return b"".join(chunks)
