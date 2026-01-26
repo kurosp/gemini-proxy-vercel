@@ -74,7 +74,7 @@ export default async function handler(req, res) {
   res.setHeader("Retry-After", String(wait));
   return res.status(429).json({
     error: {
-      message: `All keys exhausted or rate-limited. Retry in ${wait}s.`,
+      message: `Key của Btoan AI đạt giới hạn rùi, bạn quay lại sau ${wait}s nhé.`,
       retry_after_seconds: wait,
       last_error: lastErr
     }
